@@ -299,7 +299,7 @@ pub fn filter_commits_for_package(
         'file_loop: for file in commit.files.iter() {
             let file_path = Path::new(file);
             for package_path in package_paths.iter() {
-                let normalized_path = package_path.replace("./", "");
+                let normalized_path = package_path.replace("\\", "/").replace("./", "");
                 let mut normalized_path = Path::new(&normalized_path);
                 if package_path == "." {
                     normalized_path = Path::new("");
