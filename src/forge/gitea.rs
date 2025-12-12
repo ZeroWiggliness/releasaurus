@@ -247,7 +247,7 @@ impl Gitea {
     }
 
     async fn get_file_sha(&self, path: &str) -> Result<String> {
-        let path = path.replace("\\", "/").strip_prefix("./").unwrap_or(path);
+        let path = path.strip_prefix("./").unwrap_or(path);
         let file_url = self.base_url.join(&format!("contents/{path}"))?;
         let request = self.client.get(file_url).build()?;
         let response = self.client.execute(request).await?;
