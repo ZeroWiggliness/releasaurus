@@ -181,6 +181,14 @@
           ],
           "default": null
         },
+        "prerelease_version": {
+          "description": "Whether to append .1, .2, etc. to prerelease versions",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
         "additional_paths": {
           "description": "Additional directory paths to include commits from",
           "type": [

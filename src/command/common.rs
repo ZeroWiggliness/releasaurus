@@ -64,6 +64,22 @@ pub fn get_prerelease(
         .or_else(|| config.prerelease.clone())
 }
 
+/// Returns the prerelease_version flag with consistent priority logic.
+///
+/// This function is used by both `release-pr` and `release` commands to ensure
+/// consistent prerelease version behavior across the entire workflow.
+///
+/// # Priority
+/// package config > global config
+pub fn get_prerelease_version(
+    config: &Config,
+    package: &PackageConfig,
+) -> bool {
+    package
+        .prerelease_version
+        .unwrap_or(config.prerelease_version)
+}
+
 /// Generates [`AnalyzerConfig`] from [`Config`], [`RemoteConfig`],
 /// [`PackageConfig`], and tag_prefix [`String`].
 /// Prerelease priority: CLI override > package config > global config
@@ -76,6 +92,7 @@ pub fn generate_analyzer_config(
 ) -> AnalyzerConfig {
     // Determine prerelease with priority: override > package > global
     let prerelease = get_prerelease(config, package);
+    let prerelease_version = get_prerelease_version(config, package);
 
     let mut release_commit_matcher = None;
 
@@ -115,7 +132,7 @@ pub fn generate_analyzer_config(
         release_link_base_url: remote_config.release_link_base_url.clone(),
         tag_prefix: Some(tag_prefix),
         prerelease,
-        prerelease_version: config.prerelease_version,
+        prerelease_version,
         release_commit_matcher,
         breaking_always_increment_major,
         features_always_increment_minor,
@@ -300,7 +317,8 @@ pub fn filter_commits_for_package(
         'file_loop: for file in commit.files.iter() {
             let file_path = Path::new(file);
             for package_path in package_paths.iter() {
-                let normalized_path = package_path.replace("\\", "/").replace("./", "");
+                let normalized_path =
+                    package_path.replace("\\", "/").replace("./", "");
                 let mut normalized_path = Path::new(&normalized_path);
                 if package_path == "." {
                     normalized_path = Path::new("");
@@ -392,6 +410,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -416,6 +435,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -440,6 +460,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -464,6 +485,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: Some("my-special-tag-prefix-v".into()),
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -486,6 +508,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: Some("v".into()),
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -528,6 +551,7 @@ mod tests {
                 release_type: Some(ReleaseType::Generic),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -542,6 +566,7 @@ mod tests {
                 release_type: Some(ReleaseType::Node),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -569,6 +594,7 @@ mod tests {
                 release_type: Some(ReleaseType::Generic),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -583,6 +609,7 @@ mod tests {
                 release_type: Some(ReleaseType::Node),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -610,6 +637,7 @@ mod tests {
                 release_type: Some(ReleaseType::Generic),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -624,6 +652,7 @@ mod tests {
                 release_type: Some(ReleaseType::Node),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -648,6 +677,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -670,6 +700,7 @@ mod tests {
                 release_type: Some(ReleaseType::Generic),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -688,6 +719,36 @@ mod tests {
     }
 
     #[test]
+    fn test_get_prerelease_version_package_overrides_global() {
+        let mut config =
+            test_helpers::create_test_config(vec![PackageConfig {
+                name: "my-package".into(),
+                path: ".".into(),
+                workspace_root: ".".into(),
+                release_type: Some(ReleaseType::Generic),
+                tag_prefix: None,
+                prerelease: None,
+                prerelease_version: Some(true),
+                additional_paths: None,
+                additional_manifest_files: None,
+                breaking_always_increment_major: Some(true),
+                features_always_increment_minor: Some(true),
+                custom_major_increment_regex: None,
+                custom_minor_increment_regex: None,
+            }]);
+        // Set both global and package
+        config.prerelease = Some("alpha".to_string());
+        config.prerelease_version = true;
+        config.packages[0].prerelease = Some("beta".to_string());
+        config.packages[0].prerelease_version = Some(false);
+
+        let result = get_prerelease_version(&config, &config.packages[0]);
+
+        // Package should win over global
+        assert_eq!(result, false);
+    }
+
+    #[test]
     fn test_get_prerelease_uses_global_when_package_not_set() {
         let mut config =
             test_helpers::create_test_config(vec![PackageConfig {
@@ -697,6 +758,7 @@ mod tests {
                 release_type: Some(ReleaseType::Generic),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(true),
@@ -714,6 +776,34 @@ mod tests {
     }
 
     #[test]
+    fn test_get_prerelease_version_uses_global_when_package_not_set() {
+        let mut config =
+            test_helpers::create_test_config(vec![PackageConfig {
+                name: "my-package".into(),
+                path: ".".into(),
+                workspace_root: ".".into(),
+                release_type: Some(ReleaseType::Generic),
+                tag_prefix: None,
+                prerelease: None,
+                prerelease_version: None,
+                additional_paths: None,
+                additional_manifest_files: None,
+                breaking_always_increment_major: Some(true),
+                features_always_increment_minor: Some(true),
+                custom_major_increment_regex: None,
+                custom_minor_increment_regex: None,
+            }]);
+        // Set only global
+        config.prerelease = Some("alpha".to_string());
+        config.prerelease_version = false;
+
+        let result = get_prerelease_version(&config, &config.packages[0]);
+
+        // Should use global
+        assert_eq!(result, false);
+    }
+
+    #[test]
     fn test_get_prerelease_returns_none_when_nothing_set() {
         let config = test_helpers::create_test_config(vec![PackageConfig {
             name: "my-package".into(),
@@ -722,6 +812,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -746,6 +837,7 @@ mod tests {
             release_type: Some(ReleaseType::Generic),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: Some(true),
@@ -800,6 +892,7 @@ mod tests {
             release_type: Some(ReleaseType::Node),
             tag_prefix: None,
             prerelease: None,
+            prerelease_version: None,
             additional_paths: None,
             additional_manifest_files: None,
             breaking_always_increment_major: None,
@@ -833,6 +926,7 @@ mod tests {
                 release_type: Some(ReleaseType::Node),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: Some(false),
@@ -869,6 +963,7 @@ mod tests {
                 release_type: Some(ReleaseType::Node),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: None,
@@ -911,6 +1006,7 @@ mod tests {
                 release_type: Some(ReleaseType::Node),
                 tag_prefix: None,
                 prerelease: None,
+                prerelease_version: None,
                 additional_paths: None,
                 additional_manifest_files: None,
                 breaking_always_increment_major: None,
