@@ -115,6 +115,7 @@ pub fn generate_analyzer_config(
         release_link_base_url: remote_config.release_link_base_url.clone(),
         tag_prefix: Some(tag_prefix),
         prerelease,
+        prerelease_version: config.prerelease_version,
         release_commit_matcher,
         breaking_always_increment_major,
         features_always_increment_minor,
